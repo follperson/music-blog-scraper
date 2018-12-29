@@ -23,15 +23,9 @@ def make_random_article_newline(model):
 
 def look_at_pitcfork():
     get_corpus(PitchforkArticleDownloader)
-
-
-
-def get_corpus(class_obj,**kwargs):
-    obj = class_obj(**kwargs)
-    obj.main()
-    obj.df_articles.to_excel('corpus\\%s_%s.xlsx' %(obj.name, str(obj.max_search)))
-    data = obj.df_articles['Body'].tolist()
-
+    # get_corpus(PitchforkArticleDownloader,max_search=10)
+#
+def make_sentences(data):
     no_breaks = ' '.join([' '.join(article) for article in data])
     full_article_breaks = '\n'.join([' '.join(article) for article in data])
     paragraph_breaks = '\n'.join(['\n'.join(article) for article in data])
@@ -41,12 +35,19 @@ def get_corpus(class_obj,**kwargs):
                       mk.NewlineText(input_text=full_article_breaks, state_size=state)]:
             print(state,model)
             make_random_article_newline(model=model)
+
+
+def get_corpus(class_obj,**kwargs):
+    obj = class_obj(**kwargs)
+    obj.main()
+    data = obj.df_articles['body-cleaned'].tolist()
+    make_sentences(data)
     # make_random_article_newline(model=mk.Text(input_text=no_breaks, state_size=4))
     # make_random_article_newline(model=mk.NewlineText(input_text=paragraph_breaks, state_size=4))
     # make_random_article_newline(model=mk.NewlineText(input_text=full_article_breaks, state_size=4))
 #
 if __name__ == '__main__':
     # make_random_article_edm()
-    # look_at_pitcfork()
+    look_at_pitcfork()
 
-    look_at_edm()
+    # look_at_edm()
