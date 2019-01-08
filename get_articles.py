@@ -6,7 +6,7 @@ import re
 
 __author__ = 'Andrew Follmann'
 __date__ = ''
-__version__ = '0.0.4'
+__version__ = '0.0.5'
 
 class YourEDMArticleDownloader(object):
     def __init__(self, max_search=9999):
@@ -65,10 +65,6 @@ class YourEDMArticleDownloader(object):
         self.scour_articles()
 
 
-class ArticleDownloader(object):
-    pass
-
-
 class PitchforkArticleDownloader(object):
     class ArticleTypes:
         FEATURE = 'features'
@@ -76,6 +72,11 @@ class PitchforkArticleDownloader(object):
         TRACKS = 'reviews/tracks'
         ALL = [TRACKS,FEATURE, ALBUMS, ]
 
+    # class SearchFlags:
+
+    ARTICLE_LIST = {ArticleTypes.FEATURE: ['title-link module__title-link'],
+                    ArticleTypes.ALBUMS: ['review__link'],
+                    ArticleTypes.TRACKS: ['title-link', 'track-collection-item__track-link']}
     class ExcludeLinkFlags:
         LISTS = 'lists-and-guides'
         PODCAST = 'podcast'
@@ -90,10 +91,6 @@ class PitchforkArticleDownloader(object):
         FULLREPLACE = [re.compile('^\s*$'),re.compile('^Listen to the track below$',re.I),
                        re.compile('^Add to queue',re.I),re.compile('All rights reserved',re.I)] # to remove full text entries
 
-    ARTICLE_LIST = {ArticleTypes.FEATURE: ['title-link module__title-link'],
-                    ArticleTypes.ALBUMS: ['review__link'],
-                    ArticleTypes.TRACKS: ['title-link', 'track-collection-item__track-link']}
-
 
     def __init__(self, max_search=9999):
         self.name = 'Pitchfork'
@@ -104,6 +101,8 @@ class PitchforkArticleDownloader(object):
 
     def initialize(self):
         self.article_headers = {article: [] for article in self.ArticleTypes.ALL}
+
+    ### GET ARTICLE URLS ####
 
     def scour_list_pages(self, soup, article_type):
         links = [self.root_website + node['href'] for class_name in self.ARTICLE_LIST[article_type] for node in soup.find_all('a', {'class': class_name})]
@@ -124,6 +123,8 @@ class PitchforkArticleDownloader(object):
             search = requests.get(root_search + str(page))
             soup = BeautifulSoup(search.content)
 
+    ### GET ARTICLE DATA ####
+
     def get_author(self, soup):
         authors = ', '.join([node.text for node in soup.find_all('a', {'class': 'authors-detail__display-name'})])
         if len(authors) == 0:
@@ -143,6 +144,18 @@ class PitchforkArticleDownloader(object):
     def get_review_score(self, soup):
         return soup.find('span', {'class':'score'}).text
 
+    def get_date_pub(self, soup):
+        node = soup.find('time',{'class':"pub-date"})
+        for want in ['datetime','title']:
+            try:
+                return node[want]
+            except KeyError as ok:
+                pass
+        return node.text
+
+    def get_article_type(self, soup):
+        return soup.find('a', {'class':"type"}).text
+
     def get_article(self, soup):
         data = []
         for func in [self.get_title, self.get_author, self.get_article_body, self.get_date_pub, self.get_article_type]:
@@ -154,12 +167,8 @@ class PitchforkArticleDownloader(object):
         try:
             resp = func(*args, **kwargs)
         except Exception as huh:
-            # print(huh, func.__name__)
             resp = 'No Data'
         return resp
-
-    def get_article_type(self, soup):
-        return soup.find('a', {'class':"type"}).text
 
     def scour_articles(self):
         for article_header in self.article_headers:
@@ -178,18 +187,10 @@ class PitchforkArticleDownloader(object):
             df_articles['article-type'] = article_header
             self.df_articles = self.df_articles.append(df_articles)
 
-    def get_date_pub(self, soup):
-        node = soup.find('time',{'class':"pub-date"})
-        for want in ['datetime','title']:
-            try:
-                return node[want]
-            except KeyError as ok:
-                pass
-        return node.text
-
     def post_processing(self):
         self.df_articles['body-cleaned'] = self.df_articles['raw'].apply(lambda x: post_processing(x, self.BodyCleaner))
 
+    ########## MAIN ##########
     def main(self):
         self.initialize()
         for article_type in self.ArticleTypes.ALL:

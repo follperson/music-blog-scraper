@@ -42,12 +42,8 @@ def get_corpus(class_obj,**kwargs):
     obj.main()
     data = obj.df_articles['body-cleaned'].tolist()
     make_sentences(data)
-    # make_random_article_newline(model=mk.Text(input_text=no_breaks, state_size=4))
-    # make_random_article_newline(model=mk.NewlineText(input_text=paragraph_breaks, state_size=4))
-    # make_random_article_newline(model=mk.NewlineText(input_text=full_article_breaks, state_size=4))
-#
-if __name__ == '__main__':
-    # make_random_article_edm()
-    look_at_pitcfork()
 
+
+if __name__ == '__main__':
+    look_at_pitcfork()
     # look_at_edm()
