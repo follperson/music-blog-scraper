@@ -8,6 +8,8 @@ __author__ = 'Andrew Follmann'
 __date__ = ''
 __version__ = '0.0.5'
 
+
+
 class YourEDMArticleDownloader(object):
     def __init__(self, max_search=9999):
         self.name = 'Your EDM'
@@ -28,7 +30,7 @@ class YourEDMArticleDownloader(object):
                 break
             soup = BeautifulSoup(search.content)
             self.scour_list_pages(soup)
-            page += 1 # first page is 0, then second is 2
+            page += 1  # first page is 0, then second is 2
             search = requests.get(root_search + '/page/' + str(page))
 
     def get_article(self, soup):
@@ -77,6 +79,7 @@ class PitchforkArticleDownloader(object):
     ARTICLE_LIST = {ArticleTypes.FEATURE: ['title-link module__title-link'],
                     ArticleTypes.ALBUMS: ['review__link'],
                     ArticleTypes.TRACKS: ['title-link', 'track-collection-item__track-link']}
+
     class ExcludeLinkFlags:
         LISTS = 'lists-and-guides'
         PODCAST = 'podcast'
