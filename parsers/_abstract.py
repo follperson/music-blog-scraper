@@ -21,21 +21,20 @@ class AbstractParser(object):
                  exclude_link_flags=None, cleaner=TextCleaners.AbstractCleaner):
         self.name = name
         self.base_url = base_url
-        self.data = {}
         self.search_pages = search_pages
-        self.search_limit = 2
-        self.start_page = 1
+        self.search_limit = search_limit
+        self.start_page = start_page
         self.exclude_link_flags = exclude_link_flags if exclude_link_flags is not None else []
         self.parse_functions = parse_functions
         self.cleaner = cleaner
         self.HEADERS = HEADERS
-
+        self.data = {}
 
     def get_urls_to_parse(self):
         for search_url_base in self.search_pages:
             search_url = self.base_url + '/' + search_url_base + '/?page='
             pageno = self.start_page
-            search_page = requests.get(search_url + str(pageno), headers=self.HEADERS)
+            search_page = self.get_url(search_url + str(pageno))
             soup = BeautifulSoup(search_page.content)
             while search_page.status_code != 404 and self.search_limit > (pageno - self.start_page):
                 if search_page.status_code == 503:  # temporary off
@@ -43,14 +42,13 @@ class AbstractParser(object):
                     continue
                 soup = BeautifulSoup(search_page.content, features='lxml')
                 links = self.parse_search_page(soup, self.search_pages[search_url_base])
-
                 link_dict = {
                     self.base_url + url if self.base_url not in url else url: {'search_url_base': search_url_base} for
                     url in links}
                 self.data.update(link_dict)
                 pageno += 1
                 random_wait(5)
-                search_page = requests.get(url=search_url + str(pageno), headers=HEADERS)
+                search_page = self.get_url(url=search_url + str(pageno))
 
     def get_author(self, soup):
         raise NotImplementedError
@@ -81,6 +79,16 @@ class AbstractParser(object):
             resp = 'Error'
         return resp
 
+    def get_url(self, url):
+        resp = requests.get(url, headers=HEADERS)
+        if resp.status_code == 404:
+            print("Cannot find %s" % url)
+            return
+        if resp.status_code == 503:
+            random_wait(20)
+            return
+        return resp
+
     def parse_article_page(self, soup):
         data = dict()
         for name in self.parse_functions:
@@ -91,22 +99,19 @@ class AbstractParser(object):
         return data
 
     def collect_articles(self):
+        folder = self.base_url.split('://')[-1].strip('.')
         for url in self.data:
-            random_wait(5)
-            local_html ='html-downloads/%s/%s.html' % (self.base_url.split('www')[-1].strip('.'),
-                                                       url.replace(self.base_url,'').strip('/').replace('/','-'))
+            local_html ='html-downloads/%s/%s.html' % \
+                        (folder, url.replace(self.base_url,'').strip('/').replace('/','-'))
             if os.path.exists(local_html):
                 print("Using Local Copy %s" % url)
                 with open(local_html, 'rb') as html:
                     content = html.read()
             else:
                 print("Using live copy %s" % url)
-                resp = requests.get(url, headers=HEADERS)
-                if resp.status_code == 404:
-                    print("Cannot find %s" %url)
-                    continue
-                if resp.status_code == 503:
-                    random_wait(20)
+                random_wait(5)
+                resp = self.get_url(url)
+                if resp is None:
                     continue
                 content = resp.content
                 if not os.path.exists(os.path.dirname(local_html)):

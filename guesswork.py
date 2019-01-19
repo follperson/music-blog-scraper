@@ -10,7 +10,6 @@ def look_at_edm():
     get_corpus(YourEDMArticleDownloader)
 
 
-
 def make_random_article_newline(model):
     print('-------------------------------')
     print(model.make_sentence())
@@ -20,10 +19,10 @@ def make_random_article_newline(model):
     print(model.make_sentence())
 
 
-
 def look_at_pitcfork():
     get_corpus(PitchforkArticleDownloader)
     # get_corpus(PitchforkArticleDownloader,max_search=10)
+
 #
 def make_sentences(data):
     no_breaks = ' '.join([' '.join(article) for article in data])
@@ -40,7 +39,14 @@ def make_sentences(data):
 def get_corpus(class_obj,**kwargs):
     obj = class_obj(**kwargs)
     obj.main()
-    data = obj.df_articles['body-cleaned'].tolist()
+    data = obj.df_articles['body-cleaned'].str.split('[\'\"], [\'\"]')
+    make_sentences(data)
+
+
+def classifictation(class_obj,**kwargs):
+    obj = class_obj(**kwargs)
+    obj.main()
+    data = obj.df_articles['body-cleaned'].str.split('[\'\"], [\'\"]')
     make_sentences(data)
 
 

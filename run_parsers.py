@@ -4,17 +4,26 @@ from utils import random_wait
 import os
 __author__ = 'Andrew Follmann'
 __date__ = ''
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 
 def slowly_gather():
     max_range = 10000
-    increment = 1
-    current_start_page = 1 + len([f for f in os.listdir('scraping') if '.xlsx' in f]) * increment
-
+    increment = 5
+    # name = 'Pitchfork Feature'
+    # search_pages = PitchforkArticleDownloader.SearchPages.FEATURE
+    # name = 'Pitchfork Albums'
+    # search_pages = PitchforkArticleDownloader.SearchPages.ALBUMS
+    name = 'Pitchfork Songs'
+    search_pages = PitchforkArticleDownloader.SearchPages.TRACKS
+    try:
+        current_start_page = 1 + len([f for f in os.listdir('scraping\\' + name) if '.xlsx' in f]) * increment
+    except FileNotFoundError:
+        os.mkdir('scraping\\' + name)
+        current_start_page = 1
     while current_start_page < max_range:
         print('Start Page %s' % current_start_page)
-        parser = PitchforkArticleDownloader(start_page=current_start_page, search_limit=increment)
+        parser = PitchforkArticleDownloader(name=name, start_page=current_start_page, search_limit=increment,search_pages=search_pages)
         parser.main()
         current_start_page += increment
         random_wait(60)
