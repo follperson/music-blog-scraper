@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 import markovify as mk
+import pandas as pd
 from get_articles import YourEDMArticleDownloader, PitchforkArticleDownloader
 __author__ = 'Andrew Follmann'
 __date__ = ''
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 
 
 def look_at_edm():
@@ -21,7 +22,7 @@ def make_random_article_newline(model):
 
 
 
-def look_at_pitcfork():
+def look_at_pitchfork():
     get_corpus(PitchforkArticleDownloader)
     # get_corpus(PitchforkArticleDownloader,max_search=10)
 #
@@ -37,6 +38,12 @@ def make_sentences(data):
             make_random_article_newline(model=model)
 
 
+def load_corpus_from_file(fp):
+    df = pd.read_excel(fp)
+    df['body-cleaned'] = df['body-cleaned'].apply(lambda x: eval(x))
+    make_sentences(df['body-cleaned'].tolist())
+
+
 def get_corpus(class_obj,**kwargs):
     obj = class_obj(**kwargs)
     obj.main()
@@ -48,6 +55,8 @@ def get_corpus(class_obj,**kwargs):
 #
 if __name__ == '__main__':
     # make_random_article_edm()
-    look_at_pitcfork()
-
+    # look_at_pitchfork()
+    load_corpus_from_file('corpus/pitchfork_9999_tracks.xlsx')
+    # load_corpus_from_file('corpus/pitchfork_9999_albums.xlsx')
+    # load_corpus_from_file('corpus/pitchfork_9999_features.xlsx')
     # look_at_edm()

@@ -8,6 +8,8 @@ __author__ = 'Andrew Follmann'
 __date__ = ''
 __version__ = '0.0.4'
 
+
+
 class YourEDMArticleDownloader(object):
     def __init__(self, max_search=9999):
         self.name = 'Your EDM'
@@ -23,7 +25,7 @@ class YourEDMArticleDownloader(object):
         search = requests.get(root_search)
         soup = BeautifulSoup(search.content)
         page = 1
-        while search.status_code not in [404, 503]:
+        while search.status_code not in [404]:
             if page > self.max_search:
                 break
             soup = BeautifulSoup(search.content)
@@ -57,7 +59,6 @@ class YourEDMArticleDownloader(object):
                 print('ERROR', huh,'\n'+link)
                 continue
             data.append([link,t,a,d])
-            # print(t)
         self.df_articles = pd.DataFrame(data, columns=['url','Title','Author','Body'])
 
     def main(self):
@@ -66,15 +67,28 @@ class YourEDMArticleDownloader(object):
 
 
 class ArticleDownloader(object):
-    pass
+    class ArticleTypes:
+        pass
+    class ExcludeLinkFlags:
+        pass
+    def __str__(self):
+        return self.name + '_' + str(self.max_search)
+    class BodyCleaner:
+        pass
 
+    def __init__(self):
+        self.name = ''
+        self.max_search = 9999
+
+    def main(self):
+        pass
 
 class PitchforkArticleDownloader(object):
     class ArticleTypes:
         FEATURE = 'features'
         ALBUMS = 'reviews/albums'
         TRACKS = 'reviews/tracks'
-        ALL = [TRACKS,FEATURE, ALBUMS, ]
+        ALL = [TRACKS,FEATURE, ALBUMS]
 
     class ExcludeLinkFlags:
         LISTS = 'lists-and-guides'
@@ -87,13 +101,15 @@ class PitchforkArticleDownloader(object):
 
     class BodyCleaner:
         INLINE = {'\xa0': ' ','\n':' '} # to strip characters in the body of the text
-        FULLREPLACE = [re.compile('^\s*$'),re.compile('^Listen to the track below$',re.I),
-                       re.compile('^Add to queue',re.I),re.compile('All rights reserved',re.I)] # to remove full text entries
+        FULLREPLACE = [re.compile('^\s*$'),re.compile('^Listen to the track below[.:]*$',re.I),
+                       re.compile('^Add to queue[.:]*$',re.I),re.compile('All rights reserved',re.I)]
 
     ARTICLE_LIST = {ArticleTypes.FEATURE: ['title-link module__title-link'],
                     ArticleTypes.ALBUMS: ['review__link'],
                     ArticleTypes.TRACKS: ['title-link', 'track-collection-item__track-link']}
 
+    def __str__(self):
+        return self.name + '_' + str(self.max_search)
 
     def __init__(self, max_search=9999):
         self.name = 'Pitchfork'
@@ -121,7 +137,9 @@ class PitchforkArticleDownloader(object):
             print(page)
             self.scour_list_pages(soup, article_type)
             page += 1 # first page is 0, then second is 2
-            search = requests.get(root_search + str(page))
+            search = self.log_attempt(requests.get,url=root_search + str(page))
+            if search == 'No Data':
+                continue
             soup = BeautifulSoup(search.content)
 
     def get_author(self, soup):
@@ -129,7 +147,7 @@ class PitchforkArticleDownloader(object):
         if len(authors) == 0:
             try:
                 authors += soup.find('ul', {'class': 'authors-detail'}).find_next('li').text
-                print(authors)
+                # print(authors)
             except Exception:
                 authors = self.name + ' Generic'
         return authors
@@ -167,9 +185,8 @@ class PitchforkArticleDownloader(object):
             for link in self.article_headers[article_header]:
                 if link.count(self.root_website) > 1:  # non-standard link already included root
                     link = link[len(self.root_website):]
-                try:
-                    resp = requests.get(link)
-                except (requests.exceptions.ConnectionError):
+                resp = self.log_attempt(requests.get, url=link)
+                if resp == 'No Data':
                     continue
                 soup = BeautifulSoup(resp.content)
                 t,a,d,date,a_type = self.get_article(soup)
@@ -197,7 +214,7 @@ class PitchforkArticleDownloader(object):
             self.get_article_list(article_type)
         self.scour_articles()
         self.post_processing()
-        self.df_articles.to_excel('corpus\\%s_%s.xlsx' %(self.name, self.max_search))
+        self.df_articles.to_excel('corpus\\%s.xlsx' % str(self))
 
 
 def post_processing(body, BodyCleaner):
