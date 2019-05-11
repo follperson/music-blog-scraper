@@ -10,12 +10,12 @@ __version__ = '0.1.1'
 def slowly_gather():
     max_range = 10000
     increment = 5
-    # name = 'Pitchfork Feature'
+    # name = 'Pitchfork Feature' # complete
     # search_pages = PitchforkArticleDownloader.SearchPages.FEATURE
-    # name = 'Pitchfork Albums'
-    # search_pages = PitchforkArticleDownloader.SearchPages.ALBUMS
-    name = 'Pitchfork Songs'
-    search_pages = PitchforkArticleDownloader.SearchPages.TRACKS
+    name = 'Pitchfork Albums'
+    search_pages = PitchforkArticleDownloader.SearchPages.ALBUMS
+    # name = 'Pitchfork Songs' # complete
+    # search_pages = PitchforkArticleDownloader.SearchPages.TRACKS
     try:
         current_start_page = 1 + len([f for f in os.listdir('scraping\\' + name) if '.xlsx' in f]) * increment
     except FileNotFoundError:
@@ -26,7 +26,8 @@ def slowly_gather():
         parser = PitchforkArticleDownloader(name=name, start_page=current_start_page, search_limit=increment,search_pages=search_pages)
         parser.main()
         current_start_page += increment
-        random_wait(60)
+        # random_wait(60)
+
 
 def main():
     # get_all()

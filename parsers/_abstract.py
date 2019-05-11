@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 import re
-from time import time as curtime
+from time import time as curtime, sleep
 from datetime import date
 import os
 from utils import *
@@ -80,13 +80,17 @@ class AbstractParser(object):
         return resp
 
     def get_url(self, url):
-        resp = requests.get(url, headers=HEADERS)
+        try:
+            resp = requests.get(url, headers=HEADERS)
+        except requests.exceptions.ConnectionError as nointernet:
+            sleep(60)
+            resp = self.get_url(url)
         if resp.status_code == 404:
             print("Cannot find %s" % url)
             return
         if resp.status_code == 503:
             random_wait(20)
-            return
+            resp = requests.get(url, headers=HEADERS)
         return resp
 
     def parse_article_page(self, soup):
@@ -103,6 +107,8 @@ class AbstractParser(object):
         for url in self.data:
             local_html ='html-downloads/%s/%s.html' % \
                         (folder, url.replace(self.base_url,'').strip('/').replace('/','-'))
+            if len(local_html) > (255 - len(os.getcwd())):
+                local_html = local_html[:255 - len(os.getcwd())]
             if os.path.exists(local_html):
                 print("Using Local Copy %s" % url)
                 with open(local_html, 'rb') as html:

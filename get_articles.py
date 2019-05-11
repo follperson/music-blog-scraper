@@ -16,12 +16,12 @@ class YourEDMArticleDownloader(object):
         self.links = []
         self.max_search = max_search
 
-    def scour_list_pages(self, soup):
+    def scour_list_pages(self, soup): #
         links = [node.find('a')['href'] for node in soup.find_all('h2', {'class': 'cb-post-title'})]
         self.links += links
 
     def get_pages(self):
-        root_search = 'https://www.youredm.com/master-editorial'
+        root_search = 'https://www.youredm.com/master-editorial'#
         search = requests.get(root_search)
         soup = BeautifulSoup(search.content)
         page = 1
