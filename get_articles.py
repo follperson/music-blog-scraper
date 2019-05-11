@@ -6,7 +6,7 @@ import re
 
 __author__ = 'Andrew Follmann'
 __date__ = ''
-__version__ = '0.0.4'
+__version__ = '0.0.5'
 
 
 
@@ -16,21 +16,21 @@ class YourEDMArticleDownloader(object):
         self.links = []
         self.max_search = max_search
 
-    def scour_list_pages(self, soup):
+    def scour_list_pages(self, soup): #
         links = [node.find('a')['href'] for node in soup.find_all('h2', {'class': 'cb-post-title'})]
         self.links += links
 
     def get_pages(self):
-        root_search = 'https://www.youredm.com/master-editorial'
+        root_search = 'https://www.youredm.com/master-editorial'#
         search = requests.get(root_search)
         soup = BeautifulSoup(search.content)
         page = 1
-        while search.status_code not in [404]:
+        while search.status_code not in [404, 503]:
             if page > self.max_search:
                 break
             soup = BeautifulSoup(search.content)
             self.scour_list_pages(soup)
-            page += 1 # first page is 0, then second is 2
+            page += 1  # first page is 0, then second is 2
             search = requests.get(root_search + '/page/' + str(page))
 
     def get_article(self, soup):
@@ -59,6 +59,7 @@ class YourEDMArticleDownloader(object):
                 print('ERROR', huh,'\n'+link)
                 continue
             data.append([link,t,a,d])
+            # print(t)
         self.df_articles = pd.DataFrame(data, columns=['url','Title','Author','Body'])
 
     def main(self):
@@ -88,7 +89,13 @@ class PitchforkArticleDownloader(object):
         FEATURE = 'features'
         ALBUMS = 'reviews/albums'
         TRACKS = 'reviews/tracks'
-        ALL = [TRACKS,FEATURE, ALBUMS]
+        ALL = [TRACKS,FEATURE, ALBUMS, ]
+
+    # class SearchFlags:
+
+    ARTICLE_LIST = {ArticleTypes.FEATURE: ['title-link module__title-link'],
+                    ArticleTypes.ALBUMS: ['review__link'],
+                    ArticleTypes.TRACKS: ['title-link', 'track-collection-item__track-link']}
 
     class ExcludeLinkFlags:
         LISTS = 'lists-and-guides'
@@ -104,10 +111,6 @@ class PitchforkArticleDownloader(object):
         FULLREPLACE = [re.compile('^\s*$'),re.compile('^Listen to the track below[.:]*$',re.I),
                        re.compile('^Add to queue[.:]*$',re.I),re.compile('All rights reserved',re.I)]
 
-    ARTICLE_LIST = {ArticleTypes.FEATURE: ['title-link module__title-link'],
-                    ArticleTypes.ALBUMS: ['review__link'],
-                    ArticleTypes.TRACKS: ['title-link', 'track-collection-item__track-link']}
-
     def __str__(self):
         return self.name + '_' + str(self.max_search)
 
@@ -120,6 +123,8 @@ class PitchforkArticleDownloader(object):
 
     def initialize(self):
         self.article_headers = {article: [] for article in self.ArticleTypes.ALL}
+
+    ### GET ARTICLE URLS ####
 
     def scour_list_pages(self, soup, article_type):
         links = [self.root_website + node['href'] for class_name in self.ARTICLE_LIST[article_type] for node in soup.find_all('a', {'class': class_name})]
@@ -142,6 +147,8 @@ class PitchforkArticleDownloader(object):
                 continue
             soup = BeautifulSoup(search.content)
 
+    ### GET ARTICLE DATA ####
+
     def get_author(self, soup):
         authors = ', '.join([node.text for node in soup.find_all('a', {'class': 'authors-detail__display-name'})])
         if len(authors) == 0:
@@ -161,6 +168,18 @@ class PitchforkArticleDownloader(object):
     def get_review_score(self, soup):
         return soup.find('span', {'class':'score'}).text
 
+    def get_date_pub(self, soup):
+        node = soup.find('time',{'class':"pub-date"})
+        for want in ['datetime','title']:
+            try:
+                return node[want]
+            except KeyError as ok:
+                pass
+        return node.text
+
+    def get_article_type(self, soup):
+        return soup.find('a', {'class':"type"}).text
+
     def get_article(self, soup):
         data = []
         for func in [self.get_title, self.get_author, self.get_article_body, self.get_date_pub, self.get_article_type]:
@@ -172,7 +191,6 @@ class PitchforkArticleDownloader(object):
         try:
             resp = func(*args, **kwargs)
         except Exception as huh:
-            # print(huh, func.__name__)
             resp = 'No Data'
         return resp
 
@@ -185,8 +203,9 @@ class PitchforkArticleDownloader(object):
             for link in self.article_headers[article_header]:
                 if link.count(self.root_website) > 1:  # non-standard link already included root
                     link = link[len(self.root_website):]
-                resp = self.log_attempt(requests.get, url=link)
-                if resp == 'No Data':
+                try:
+                    resp = requests.get(link)
+                except (requests.exceptions.ConnectionError):
                     continue
                 soup = BeautifulSoup(resp.content)
                 t,a,d,date,a_type = self.get_article(soup)
@@ -195,18 +214,11 @@ class PitchforkArticleDownloader(object):
             df_articles['article-type'] = article_header
             self.df_articles = self.df_articles.append(df_articles)
 
-    def get_date_pub(self, soup):
-        node = soup.find('time',{'class':"pub-date"})
-        for want in ['datetime','title']:
-            try:
-                return node[want]
-            except KeyError as ok:
-                pass
-        return node.text
 
     def post_processing(self):
         self.df_articles['body-cleaned'] = self.df_articles['raw'].apply(lambda x: post_processing(x, self.BodyCleaner))
 
+    ########## MAIN ##########
     def main(self):
         self.initialize()
         for article_type in self.ArticleTypes.ALL:
@@ -214,7 +226,7 @@ class PitchforkArticleDownloader(object):
             self.get_article_list(article_type)
         self.scour_articles()
         self.post_processing()
-        self.df_articles.to_excel('corpus\\%s.xlsx' % str(self))
+        self.df_articles.to_excel('corpus\\%s_%s.xlsx' %(self.name, self.max_search))
 
 
 def post_processing(body, BodyCleaner):
