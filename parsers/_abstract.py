@@ -12,16 +12,17 @@ from cleaners import TextCleaners
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
 }
 
+
 class AbstractParser(object):
 
     def __str__(self):
         return 'Blog Parser for ' + self.name
 
-    def __init__(self, name, base_url, search_pages, parse_functions, search_limit=2, start_page=1,
+    def __init__(self, name, base_url, search_page, parse_functions, search_limit=2, start_page=1,
                  exclude_link_flags=None, cleaner=TextCleaners.AbstractCleaner):
         self.name = name
         self.base_url = base_url
-        self.search_pages = search_pages
+        self.search_page = search_page
         self.search_limit = search_limit
         self.start_page = start_page
         self.exclude_link_flags = exclude_link_flags if exclude_link_flags is not None else []
@@ -31,26 +32,31 @@ class AbstractParser(object):
         self.data = {}
 
     def get_urls_to_parse(self):
-        for search_url_base in self.search_pages:
+        for search_url_base in self.search_page:
             search_url = self.base_url + '/' + search_url_base + '/?page='
             pageno = self.start_page
             search_page = self.get_url(search_url + str(pageno))
-            soup = BeautifulSoup(search_page.content)
-            while search_page.status_code != 404 and self.search_limit > (pageno - self.start_page):
+            while search_page is not None and self.search_limit > (pageno - self.start_page):
                 if search_page.status_code == 503:  # temporary off
                     random_wait(60)
                     continue
                 soup = BeautifulSoup(search_page.content, features='lxml')
-                links = self.parse_search_page(soup, self.search_pages[search_url_base])
+                links = self.parse_search_page(soup, self.search_page[search_url_base])
                 link_dict = {
-                    self.base_url + url if self.base_url not in url else url: {'search_url_base': search_url_base} for
-                    url in links}
+                    self.base_url + url if self.base_url not in url
+                    else url: {'search_url_base': search_url_base}
+                    for url in links}
                 self.data.update(link_dict)
                 pageno += 1
-                random_wait(5)
+                random_wait(2)
                 search_page = self.get_url(url=search_url + str(pageno))
+                print(pageno)
+        print('Completed gathering')
 
     def get_author(self, soup):
+        raise NotImplementedError
+
+    def get_genre(self, soup):
         raise NotImplementedError
 
     def get_title(self, soup):
@@ -62,6 +68,9 @@ class AbstractParser(object):
     def get_review_score(self, soup):
         raise NotImplementedError
 
+    def get_label(self, soup):
+        raise NotImplementedError
+
     def get_date_pub(self, soup):
         raise NotImplementedError
 
@@ -70,6 +79,17 @@ class AbstractParser(object):
 
     def parse_search_page(self, soup, func):
         raise NotImplementedError('meant to be overwritten')
+
+    def from_urls(self, today):
+        pd.read_excel('scraping\\%s_URLS\\page %s to %s data scraping_%s.xlsx' % (
+            self.name, str(self.start_page), str(self.start_page + self.search_limit), str(today)))
+
+    def save_urls(self):
+        df = pd.DataFrame().from_dict(self.data).T
+        if not os.path.exists('scraping\\' + self.name+ '_URLS'):
+            os.makedirs('scraping\\' + self.name + '_URLS')
+        df.to_excel('scraping\\%s_URLS\\page %s to %s data scraping_%s.xlsx' % (
+                    self.name, str(self.start_page), str(self.start_page + self.search_limit), str(date.today())))
 
     def call_function(self, func, **kwargs):
         try:
@@ -97,16 +117,16 @@ class AbstractParser(object):
         data = dict()
         for name in self.parse_functions:
             func, kwargs_orig = self.parse_functions[name]
-            kwargs = {'soup':soup}
+            kwargs = {'soup': soup}
             kwargs.update(kwargs_orig)
             data[name] = self.call_function(func, **kwargs)
         return data
 
     def collect_articles(self):
-        folder = self.base_url.split('://')[-1].strip('.')
+        folder = os.path.join(self.base_url.split('://')[-1].strip('.'))
         for url in self.data:
             local_html ='html-downloads/%s/%s.html' % \
-                        (folder, url.replace(self.base_url,'').strip('/').replace('/','-'))
+                        (folder, url.replace(self.base_url, '').strip('/').replace('/','-'))
             if len(local_html) > (255 - len(os.getcwd())):
                 local_html = local_html[:255 - len(os.getcwd())]
             if os.path.exists(local_html):
@@ -115,7 +135,7 @@ class AbstractParser(object):
                     content = html.read()
             else:
                 print("Using live copy %s" % url)
-                random_wait(5)
+                random_wait(2)
                 resp = self.get_url(url)
                 if resp is None:
                     continue
@@ -132,9 +152,9 @@ class AbstractParser(object):
                 continue
             self.data[url].update(info)
 
-
     def main(self):
         self.get_urls_to_parse()
+        self.save_urls()
         self.collect_articles()
         self.reformat_data()
 

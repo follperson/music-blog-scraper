@@ -1,4 +1,5 @@
 from ._abstract import AbstractParser
+from cleaners import TextCleaners
 from parsers import Static
 
 
@@ -8,7 +9,7 @@ class YourEDMParser(AbstractParser):
             return [node.find('a')['href'] for node in soup.find_all('h2', {'class': 'cb-post-title'})]
 
         EDITORIAL = {'master-editorial': _editorial}
-        ALL = EDITORIAL
+        ALL = [EDITORIAL]
 
     class ExcludeLinkFlags:
         LISTS = 'lists-and-guides'
@@ -19,10 +20,10 @@ class YourEDMParser(AbstractParser):
         FEST = 'festival-report'
         ALL = [LISTS, PODCAST, PHOTOGALLERY, SPONSORED, PFEST]  # ,PFEST]
 
-    def __init__(self, name='YourEDM', search_pages=None, search_limit=2, start_page=1):
+    def __init__(self, name='YourEDM', search_page=SearchPages.EDITORIAL, search_limit=2, start_page=1):
+        assert search_page in self.SearchPages.ALL
         base_url = 'https://www.youredm.com'
-        if search_pages is None:
-            search_pages = self.SearchPages.ALL
+
         exclude_link_flags = self.ExcludeLinkFlags.ALL
         parse_functions = {Static.TITLE: (self.get_title, {}), Static.BODY: (self.get_article_body, {}),
                            Static.ARTICLETYPE: (self.get_article_type, {}), Static.RATING: (self.get_review_score, {}),
@@ -55,6 +56,9 @@ class YourEDMParser(AbstractParser):
         return authors
 
     def get_title(self, soup):
+        return soup.find('title').text
+
+    def get_genre(self, soup):
         return soup.find('title').text
 
     def get_article_body(self, soup):
