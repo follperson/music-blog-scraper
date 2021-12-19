@@ -1,5 +1,8 @@
 class Static:
     ARTICLETYPE = 'article_type'
+    ARTIST = 'artist'
+    ALBUM = 'album'
+    SONGNAME='songname'
     RATING = 'rating'
     BODY = 'body'
     GENRE = 'genre'

@@ -5,11 +5,14 @@ from parsers import Static
 
 class YourEDMParser(AbstractParser):
     class SearchPages:
-        def _editorial(self, soup):
-            return [node.find('a')['href'] for node in soup.find_all('h2', {'class': 'cb-post-title'})]
+        class FUNC:
+            def EDITORIAL(self, soup):
+                return [node.find('a')['href'] for node in soup.find_all('h2', {'class': 'cb-post-title'})]
+        class SLUGS:
+            EDITORIAL='master-editorial'
 
-        EDITORIAL = {'master-editorial': _editorial}
-        ALL = [EDITORIAL]
+
+        ALL = [SLUGS.EDITORIAL]
 
     class ExcludeLinkFlags:
         LISTS = 'lists-and-guides'
@@ -20,7 +23,8 @@ class YourEDMParser(AbstractParser):
         FEST = 'festival-report'
         ALL = [LISTS, PODCAST, PHOTOGALLERY, SPONSORED, PFEST]  # ,PFEST]
 
-    def __init__(self, name='YourEDM', search_page=SearchPages.EDITORIAL, search_limit=2, start_page=1):
+    def __init__(self, name='YourEDM', search_page=SearchPages.SLUGS.EDITORIAL,
+                 search_page_function = SearchPages.FUNC.EDITORIAL, search_limit=2, start_page=1):
         assert search_page in self.SearchPages.ALL
         base_url = 'https://www.youredm.com'
 
@@ -32,9 +36,11 @@ class YourEDMParser(AbstractParser):
         cleaner = TextCleaners.PitchforkCleaner
         super(YourEDMParser, self).__init__(name=name,
                                             base_url=base_url,
-                                            search_pages=search_pages,
+                                            search_page=search_page,
+                                            search_page_function=search_page_function,
                                             parse_functions=parse_functions,
-                                            search_limit=search_limit, start_page=start_page,
+                                            search_limit=search_limit,
+                                            start_page=start_page,
                                             exclude_link_flags=exclude_link_flags,
                                             cleaner=cleaner
                                             )
